@@ -5,30 +5,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Run the application
+# Run the server (listens on :8081)
+make run
+# or
 go run main.go
 
-# Create a new migration file
-make migrate name=<migration_name>
-# or directly:
-go run . migrate:create <migration_name>
+# Create a new database migration
+make migrate:create name=<migration_name>
+
+# Run tests
+go test ./...
+
+# Run a single test
+go test ./module/product_service/... -run TestName
 ```
+
+## Environment
+
+Requires a `.env` file in the project root:
+
+```
+DB_DRIVER=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=<user>
+DB_PASSWORD=<password>
+DB_NAME=<dbname>
+DB_SSLMODE=disable
+DB_TIMEZONE=Asia/Tashkent
+JWT_KEY=<secret>
+```
+
+Migrations run automatically on startup. The database must exist before running; tables are created via `config/migrations/`.
 
 ## Architecture
 
-This is a Go REST API kit using `julienschmidt/httprouter` for routing and `jackc/pgx/v5` (pgxpool) for PostgreSQL access.
+This is a modular REST API using `httprouter` + `pgx/v5`. Each domain feature is a self-contained module under `module/`:
 
-**Startup flow:** `main.go` loads `.env` via `helper.LoadEnv()`, then calls `config.DBConnect()` which connects the pool, runs any pending migrations automatically, and returns the pool.
+```
+module/<feature>_service/
+    cmd.go          # registers routes on the router
+    handler/        # HTTP handlers — parse request, call service, write response
+    service/        # business logic + raw SQL queries via pgxpool
+    dto/            # request and response structs with json/validate tags
+```
 
-**Migration system** (`config/migration.go`): Migrations are SQL files embedded at compile time via `//go:embed migrations/*.sql`. On startup, `RunMigrations()` creates a `schema_migrations` table if absent, then applies any unapplied `.sql` files in sorted filename order. `MigrateCreate(name)` scaffolds the next numbered file (e.g. `004_<name>.sql`) in `config/migrations/`.
+`main.go` initializes the DB pool, runs migrations, instantiates all modules, and starts the server.
 
-**Module layout** — each domain lives under `module/<name>/`:
-- `dto/` — request and response structs with `validate` tags (`go-playground/validator`)
-- `service/` — interface + concrete struct that takes `*pgxpool.Pool`; SQL written inline
-- `cmd.go` — router wiring (currently empty stubs, to be filled)
+`config/database.go` configures pgxpool (10–50 connections, 1h max lifetime).
 
-**Pointer fields for partial updates:** `Update` DTOs use `*string`/`*bool` so `COALESCE($n, column)` in SQL leaves unchanged fields untouched.
+`middleware/middleware.go` provides `CheckRole(next, roles...)` — validates the JWT from `Authorization: Bearer <token>`, checks the role claim, and sets `ContextUserID`/`ContextRole` on the request context.
 
-**Environment** — all config is read from `.env` via `godotenv`. Required keys: `DB_DRIVER`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE`, `DB_TIMEZONE`.
+`helper/helper.go` provides JSON response helpers and the shared `validator` instance.
 
-**Connection pool defaults:** MaxConns=50, MinConns=10, MaxConnLifetime=1h, MaxConnIdleTime=30m, HealthCheckPeriod=1m.
+## Key Patterns
+
+**Adding a new module:** Create `module/<name>_service/` with `cmd.go`, `handler/`, `service/`, `dto/`. Register `NewXHandler(router, db)` in `main.go`.
+
+**Routes** are registered under `/api/v1/`. Protect them with `middleware.CheckRole(handler.Method, "admin", "user")`.
+
+**Database queries** use parameterized SQL directly on `*pgxpool.Pool`. Use `pgx.ErrNoRows` to detect 404s.
+
+**Pagination:** use offset-based for admin list endpoints (`page`, `page_size`); use cursor/keyset for public list endpoints (`cursor`, `limit`). Fetch `limit+1` rows to determine `has_next`.
+
+**Filtering/sorting:** whitelist allowed sort columns in the handler before interpolating into SQL. Use `ILIKE` for case-insensitive search.
+
+**Validation errors** return HTTP 422 with `{"errors": {"field": "tag"}}`. Other errors return `{"error": "message"}`.
+
+**Soft deletes** use a `deleted_at TIMESTAMPTZ` column; always add `AND deleted_at IS NULL` to queries.
+
+**JWT claims:** `user_id` (float64), `role` (string), 24-hour expiry, signed with HMAC-SHA256 using `JWT_KEY`.
