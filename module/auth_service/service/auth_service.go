@@ -3,12 +3,11 @@ package auth_service
 import (
 	"context"
 	"errors"
-	"time"
 
 	"pgx-kit/helper"
 	auth_dto "pgx-kit/module/auth_service/dto"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -28,16 +27,21 @@ func NewAuthService(db *pgxpool.Pool) AuthService {
 	return &authService{db: db}
 }
 
-func generateToken(userID int64, role string) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"role":    role,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+func (service *authService) lookupCompanyID(ctx context.Context, userID int64) (int64, error) {
+	var id int64
+
+	err := service.db.QueryRow(ctx, `
+		SELECT company_id FROM company_users WHERE user_id = $1 LIMIT 1
+	`, userID).Scan(&id)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, nil
+		}
+		return 0, err
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	return token.SignedString([]byte(helper.ENV("JWT_KEY")))
+	return id, nil
 }
 
 func (service *authService) Register(ctx context.Context, req auth_dto.Register) (*auth_dto.TokenResponse, error) {
@@ -61,7 +65,7 @@ func (service *authService) Register(ctx context.Context, req auth_dto.Register)
 		return nil, err
 	}
 
-	token, err := generateToken(res.User.ID, res.User.Role)
+	token, err := helper.GenerateToken(res.User.ID, res.User.Role, 0)
 	{
 		if err != nil {
 			return nil, err
@@ -94,7 +98,14 @@ func (service *authService) Login(ctx context.Context, req auth_dto.Login) (*aut
 		return nil, ErrInvalidCredentials
 	}
 
-	token, err := generateToken(res.User.ID, res.User.Role)
+	companyID, err := service.lookupCompanyID(ctx, res.User.ID)
+	{
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	token, err := helper.GenerateToken(res.User.ID, res.User.Role, companyID)
 	{
 		if err != nil {
 			return nil, err

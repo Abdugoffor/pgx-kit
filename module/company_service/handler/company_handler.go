@@ -1,4 +1,4 @@
-package order_handler
+package company_handler
 
 import (
 	"encoding/json"
@@ -12,13 +12,13 @@ import (
 
 	"pgx-kit/helper"
 	"pgx-kit/middleware"
-	order_dto "pgx-kit/module/order_service/dto"
-	order_service "pgx-kit/module/order_service/service"
+	company_dto "pgx-kit/module/company_service/dto"
+	company_service "pgx-kit/module/company_service/service"
 )
 
 var sortCols = map[string]string{
-	"id": "id", "status": "status", "total_amount": "total_amount",
-	"created_at": "created_at", "updated_at": "updated_at",
+	"id": "id", "name": "name",
+	"is_active": "is_active", "created_at": "created_at", "updated_at": "updated_at",
 }
 
 func parseSortBy(v string) string {
@@ -29,32 +29,32 @@ func parseSortBy(v string) string {
 }
 
 func parseSortDir(v string) string {
-	if v == "asc" {
-		return "asc"
+	if v == "desc" {
+		return "desc"
 	}
-	return "desc"
+	return "asc"
 }
 
-type orderHandler struct {
-	service order_service.OrderService
+type companyHandler struct {
+	service company_service.CompanyService
 }
 
-func NewOrderHandler(router *httprouter.Router, group string, db *pgxpool.Pool) {
-	handler := &orderHandler{service: order_service.NewOrderService(db)}
+func NewCompanyHandler(router *httprouter.Router, group string, db *pgxpool.Pool) {
+	handler := &companyHandler{service: company_service.NewCompanyService(db)}
 
-	routes := group + "/orders"
+	routes := group + "/companies"
 	{
 		router.POST(routes, middleware.CheckRole(handler.Create, "admin", "user"))
 		router.PUT(routes+"/:id", middleware.CheckRole(handler.Update, "admin"))
 		router.DELETE(routes+"/:id", middleware.CheckRole(handler.Delete, "admin"))
 		router.GET(routes+"/:id", middleware.CheckRole(handler.Show, "admin", "user"))
 		router.GET(routes, middleware.CheckRole(handler.CursorList, "admin", "user"))
-		router.GET(group+"/admin/orders", middleware.CheckRole(handler.AdminList, "admin", "user"))
+		router.GET(group+"/admin/companies", middleware.CheckRole(handler.AdminList, "admin", "user"))
 	}
 }
 
-func (handler *orderHandler) Create(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var req order_dto.Create
+func (handler *companyHandler) Create(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var req company_dto.Create
 	{
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			helper.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -67,7 +67,7 @@ func (handler *orderHandler) Create(w http.ResponseWriter, r *http.Request, _ ht
 		return
 	}
 
-	res, err := handler.service.Create(r.Context(), middleware.UserID(r), req)
+	res, err := handler.service.Create(r.Context(), middleware.UserID(r), middleware.UserRole(r), req)
 	{
 		if err != nil {
 			helper.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -78,7 +78,7 @@ func (handler *orderHandler) Create(w http.ResponseWriter, r *http.Request, _ ht
 	helper.JSON(w, http.StatusCreated, res)
 }
 
-func (handler *orderHandler) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (handler *companyHandler) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	id, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
 	{
 		if err != nil {
@@ -87,7 +87,7 @@ func (handler *orderHandler) Update(w http.ResponseWriter, r *http.Request, ps h
 		}
 	}
 
-	var req order_dto.Update
+	var req company_dto.Update
 	{
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			helper.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -117,7 +117,7 @@ func (handler *orderHandler) Update(w http.ResponseWriter, r *http.Request, ps h
 	helper.JSON(w, http.StatusOK, res)
 }
 
-func (handler *orderHandler) Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (handler *companyHandler) Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	id, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
 	{
 		if err != nil {
@@ -134,7 +134,7 @@ func (handler *orderHandler) Delete(w http.ResponseWriter, r *http.Request, ps h
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (handler *orderHandler) Show(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (handler *companyHandler) Show(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	id, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
 	{
 		if err != nil {
@@ -160,22 +160,22 @@ func (handler *orderHandler) Show(w http.ResponseWriter, r *http.Request, ps htt
 	helper.JSON(w, http.StatusOK, res)
 }
 
-func (handler *orderHandler) AdminList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (handler *companyHandler) AdminList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	q := r.URL.Query()
 
-	filter := order_dto.AdminFilter{
-		Filter: order_dto.Filter{
-			Status: q.Get("status"),
+	filter := company_dto.AdminFilter{
+		Filter: company_dto.Filter{
+			Name: q.Get("name"),
 		},
 		Page:     1,
 		PageSize: 20,
 		SortBy:   "id",
-		SortDir:  "desc",
+		SortDir:  "asc",
 	}
 
-	if v := q.Get("user_id"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
-			filter.UserID = &n
+	if v := q.Get("is_active"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			filter.IsActive = &b
 		}
 	}
 
@@ -202,7 +202,7 @@ func (handler *orderHandler) AdminList(w http.ResponseWriter, r *http.Request, _
 		}
 	}
 
-	helper.JSON(w, http.StatusOK, order_dto.AdminListResponse{
+	helper.JSON(w, http.StatusOK, company_dto.AdminListResponse{
 		Data:     items,
 		Page:     filter.Page,
 		PageSize: filter.PageSize,
@@ -211,21 +211,21 @@ func (handler *orderHandler) AdminList(w http.ResponseWriter, r *http.Request, _
 	})
 }
 
-func (handler *orderHandler) CursorList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (handler *companyHandler) CursorList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	q := r.URL.Query()
 
-	filter := order_dto.CursorFilter{
-		Filter: order_dto.Filter{
-			Status: q.Get("status"),
+	filter := company_dto.CursorFilter{
+		Filter: company_dto.Filter{
+			Name: q.Get("name"),
 		},
 		Limit:   20,
 		SortBy:  "id",
-		SortDir: "desc",
+		SortDir: "asc",
 	}
 
-	if v := q.Get("user_id"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
-			filter.UserID = &n
+	if v := q.Get("is_active"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			filter.IsActive = &b
 		}
 	}
 
@@ -255,7 +255,7 @@ func (handler *orderHandler) CursorList(w http.ResponseWriter, r *http.Request, 
 		}
 	}
 
-	resp := order_dto.CursorListResponse{
+	resp := company_dto.CursorListResponse{
 		Data:    items,
 		HasMore: hasMore,
 	}

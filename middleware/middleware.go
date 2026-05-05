@@ -14,8 +14,9 @@ import (
 type contextKey string
 
 const (
-	ContextUserID contextKey = "user_id"
-	ContextRole   contextKey = "role"
+	ContextUserID    contextKey = "user_id"
+	ContextRole      contextKey = "role"
+	ContextCompanyID contextKey = "company_id"
 )
 
 func CheckRole(next httprouter.Handle, roles ...string) httprouter.Handle {
@@ -52,6 +53,7 @@ func CheckRole(next httprouter.Handle, roles ...string) httprouter.Handle {
 
 		userRole, _ := claims["role"].(string)
 		userID, _ := claims["user_id"].(float64)
+		companyID, _ := claims["company_id"].(float64)
 
 		if len(roles) > 0 {
 			allowed := false
@@ -72,6 +74,7 @@ func CheckRole(next httprouter.Handle, roles ...string) httprouter.Handle {
 
 		ctx := context.WithValue(r.Context(), ContextUserID, int64(userID))
 		ctx = context.WithValue(ctx, ContextRole, userRole)
+		ctx = context.WithValue(ctx, ContextCompanyID, int64(companyID))
 
 		next(w, r.WithContext(ctx), ps)
 	}
@@ -85,4 +88,9 @@ func UserID(r *http.Request) int64 {
 func UserRole(r *http.Request) string {
 	role, _ := r.Context().Value(ContextRole).(string)
 	return role
+}
+
+func CompanyID(r *http.Request) int64 {
+	id, _ := r.Context().Value(ContextCompanyID).(int64)
+	return id
 }

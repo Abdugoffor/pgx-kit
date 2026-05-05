@@ -8,9 +8,8 @@ import (
 	"pgx-kit/helper"
 	auth_cmd "pgx-kit/module/auth_service"
 	category_cmd "pgx-kit/module/category_service"
+	company_cmd "pgx-kit/module/company_service"
 	language_cmd "pgx-kit/module/language_service"
-	order_cmd "pgx-kit/module/order_service"
-	order_item_cmd "pgx-kit/module/order_item_service"
 	product_cmd "pgx-kit/module/product_service"
 	user_cmd "pgx-kit/module/user_service"
 
@@ -32,8 +31,7 @@ func main() {
 		category_cmd.Cmd(router, db)
 		product_cmd.Cmd(router, db)
 		user_cmd.Cmd(router, db)
-		order_cmd.Cmd(router, db)
-		order_item_cmd.Cmd(router, db)
+		company_cmd.Cmd(router, db)
 	}
 
 	fmt.Println("🚀 Server started on http://localhost:8081")

@@ -35,6 +35,15 @@ func parseSortDir(v string) string {
 	return "asc"
 }
 
+func requireCompany(w http.ResponseWriter, r *http.Request) (int64, bool) {
+	companyID := middleware.CompanyID(r)
+	if companyID == 0 {
+		helper.JSON(w, http.StatusForbidden, map[string]string{"error": product_service.ErrNoCompany.Error()})
+		return 0, false
+	}
+	return companyID, true
+}
+
 type productHandler struct {
 	service product_service.ProductService
 }
@@ -54,6 +63,11 @@ func NewProductHandler(router *httprouter.Router, group string, db *pgxpool.Pool
 }
 
 func (handler *productHandler) Create(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	companyID, ok := requireCompany(w, r)
+	if !ok {
+		return
+	}
+
 	var req product_dto.Create
 	{
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -67,9 +81,15 @@ func (handler *productHandler) Create(w http.ResponseWriter, r *http.Request, _ 
 		return
 	}
 
-	id, err := handler.service.Create(r.Context(), req)
+	id, err := handler.service.Create(r.Context(), companyID, req)
 	{
 		if err != nil {
+
+			if errors.Is(err, product_service.ErrCategoryInvalid) {
+				helper.JSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+				return
+			}
+
 			helper.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
@@ -79,6 +99,11 @@ func (handler *productHandler) Create(w http.ResponseWriter, r *http.Request, _ 
 }
 
 func (handler *productHandler) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	companyID, ok := requireCompany(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
 	{
 		if err != nil {
@@ -100,9 +125,14 @@ func (handler *productHandler) Update(w http.ResponseWriter, r *http.Request, ps
 		return
 	}
 
-	updatedID, err := handler.service.Update(r.Context(), id, req)
+	updatedID, err := handler.service.Update(r.Context(), companyID, id, req)
 	{
 		if err != nil {
+
+			if errors.Is(err, product_service.ErrCategoryInvalid) {
+				helper.JSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+				return
+			}
 
 			if errors.Is(err, pgx.ErrNoRows) {
 				helper.JSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
@@ -118,6 +148,11 @@ func (handler *productHandler) Update(w http.ResponseWriter, r *http.Request, ps
 }
 
 func (handler *productHandler) Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	companyID, ok := requireCompany(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
 	{
 		if err != nil {
@@ -126,7 +161,13 @@ func (handler *productHandler) Delete(w http.ResponseWriter, r *http.Request, ps
 		}
 	}
 
-	if err := handler.service.Delete(r.Context(), id); err != nil {
+	if err := handler.service.Delete(r.Context(), companyID, id); err != nil {
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			helper.JSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+			return
+		}
+
 		helper.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
@@ -135,6 +176,11 @@ func (handler *productHandler) Delete(w http.ResponseWriter, r *http.Request, ps
 }
 
 func (handler *productHandler) Show(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	companyID, ok := requireCompany(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
 	{
 		if err != nil {
@@ -143,7 +189,7 @@ func (handler *productHandler) Show(w http.ResponseWriter, r *http.Request, ps h
 		}
 	}
 
-	res, err := handler.service.Show(r.Context(), id)
+	res, err := handler.service.Show(r.Context(), companyID, id)
 	{
 		if err != nil {
 
@@ -161,6 +207,11 @@ func (handler *productHandler) Show(w http.ResponseWriter, r *http.Request, ps h
 }
 
 func (handler *productHandler) AdminList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	companyID, ok := requireCompany(w, r)
+	if !ok {
+		return
+	}
+
 	q := r.URL.Query()
 
 	filter := product_dto.AdminFilter{
@@ -200,7 +251,7 @@ func (handler *productHandler) AdminList(w http.ResponseWriter, r *http.Request,
 	filter.SortBy = parseSortBy(q.Get("sort_by"))
 	filter.SortDir = parseSortDir(q.Get("sort_dir"))
 
-	items, hasNext, err := handler.service.AdminList(r.Context(), filter)
+	items, hasNext, err := handler.service.AdminList(r.Context(), companyID, filter)
 	{
 		if err != nil {
 			helper.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -218,6 +269,11 @@ func (handler *productHandler) AdminList(w http.ResponseWriter, r *http.Request,
 }
 
 func (handler *productHandler) CursorList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	companyID, ok := requireCompany(w, r)
+	if !ok {
+		return
+	}
+
 	q := r.URL.Query()
 
 	filter := product_dto.CursorFilter{
@@ -256,7 +312,7 @@ func (handler *productHandler) CursorList(w http.ResponseWriter, r *http.Request
 	filter.SortBy = parseSortBy(q.Get("sort_by"))
 	filter.SortDir = parseSortDir(q.Get("sort_dir"))
 
-	items, hasMore, err := handler.service.CursorList(r.Context(), filter)
+	items, hasMore, err := handler.service.CursorList(r.Context(), companyID, filter)
 	{
 		if err != nil {
 			helper.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
