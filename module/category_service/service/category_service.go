@@ -3,6 +3,7 @@ package category_service
 import (
 	"context"
 	"fmt"
+
 	category_dto "pgx-kit/module/category_service/dto"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -46,8 +47,8 @@ func (service *categoryService) Update(ctx context.Context, id int64, req catego
 
 	err := service.db.QueryRow(ctx, `
 		UPDATE categories
-		SET name      = COALESCE($1, name),
-		    is_active = COALESCE($2, is_active),
+		SET name       = COALESCE($1, name),
+		    is_active  = COALESCE($2, is_active),
 		    updated_at = now()
 		WHERE id = $3
 		RETURNING id, name, is_active, created_at, updated_at
@@ -86,7 +87,7 @@ func (service *categoryService) AdminList(ctx context.Context, filter category_d
 		SELECT id, name, is_active, created_at, updated_at
 		FROM categories
 		WHERE name ILIKE '%%' || $1 || '%%'
-			AND is_active = COALESCE($2, is_active)
+			AND ($2::boolean IS NULL OR is_active = $2)
 		ORDER BY %s %s
 		LIMIT $3 OFFSET $4
 	`, filter.SortBy, filter.SortDir), filter.Name, filter.IsActive, filter.PageSize+1, (filter.Page-1)*filter.PageSize)
@@ -125,22 +126,15 @@ func (service *categoryService) AdminList(ctx context.Context, filter category_d
 }
 
 func (service *categoryService) CursorList(ctx context.Context, filter category_dto.CursorFilter) ([]category_dto.Response, bool, error) {
-	var cursorID int64
-	{
-		if filter.Cursor != nil {
-			cursorID = *filter.Cursor
-		}
-	}
-
 	rows, err := service.db.Query(ctx, fmt.Sprintf(`
 		SELECT id, name, is_active, created_at, updated_at
 		FROM categories
 		WHERE name ILIKE '%%' || $1 || '%%'
-			AND is_active = COALESCE($2, is_active)
-			AND id > $3
-		ORDER BY %s %s
+			AND ($2::boolean IS NULL OR is_active = $2)
+			AND ($3::bigint IS NULL OR id > $3)
+		ORDER BY %s %s, id %s
 		LIMIT $4
-	`, filter.SortBy, filter.SortDir), filter.Name, filter.IsActive, cursorID, filter.Limit+1)
+	`, filter.SortBy, filter.SortDir, filter.SortDir), filter.Name, filter.IsActive, filter.Cursor, filter.Limit+1)
 
 	if err != nil {
 		return nil, false, err

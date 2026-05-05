@@ -8,7 +8,7 @@ import (
 	"pgx-kit/helper"
 	category_cmd "pgx-kit/module/category_service"
 	language_cmd "pgx-kit/module/language_service"
-	product_cmd  "pgx-kit/module/product_service"
+	product_cmd "pgx-kit/module/product_service"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -28,9 +28,9 @@ func main() {
 		product_cmd.Cmd(router, db)
 	}
 
-	fmt.Println("🚀 Server started on http://localhost:8080")
+	fmt.Println("🚀 Server started on http://localhost:8081")
 
-	if err := http.ListenAndServe(":8080", router); err != nil {
+	if err := http.ListenAndServe(":8081", router); err != nil {
 		panic(err)
 	}
 }

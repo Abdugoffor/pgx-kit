@@ -99,8 +99,8 @@ func (service *productService) AdminList(ctx context.Context, filter product_dto
 		FROM products p
 		JOIN categories c ON c.id = p.category_id
 		WHERE p.name ILIKE '%%' || $1 || '%%'
-			AND p.is_active   = COALESCE($2, p.is_active)
-			AND p.category_id = COALESCE($3, p.category_id)
+			AND ($2::boolean IS NULL OR p.is_active = $2)
+			AND ($3::bigint  IS NULL OR p.category_id = $3)
 		ORDER BY p.%s %s
 		LIMIT $4 OFFSET $5
 	`, filter.SortBy, filter.SortDir), filter.Name, filter.IsActive, filter.CategoryID, filter.PageSize+1, (filter.Page-1)*filter.PageSize)
@@ -141,25 +141,18 @@ func (service *productService) AdminList(ctx context.Context, filter product_dto
 }
 
 func (service *productService) CursorList(ctx context.Context, filter product_dto.CursorFilter) ([]product_dto.Response, bool, error) {
-	var cursorID int64
-	{
-		if filter.Cursor != nil {
-			cursorID = *filter.Cursor
-		}
-	}
-
 	rows, err := service.db.Query(ctx, fmt.Sprintf(`
 		SELECT p.id, p.name, p.description, p.price::float8, p.is_active, p.created_at, p.updated_at,
 		       json_build_object('id', c.id, 'name', c.name, 'is_active', c.is_active)
 		FROM products p
 		JOIN categories c ON c.id = p.category_id
 		WHERE p.name ILIKE '%%' || $1 || '%%'
-			AND p.is_active   = COALESCE($2, p.is_active)
-			AND p.category_id = COALESCE($3, p.category_id)
-			AND p.id > $4
-		ORDER BY p.%s %s
+			AND ($2::boolean IS NULL OR p.is_active = $2)
+			AND ($3::bigint  IS NULL OR p.category_id = $3)
+			AND ($4::bigint IS NULL OR p.id > $4)
+		ORDER BY p.%s %s, p.id %s
 		LIMIT $5
-	`, filter.SortBy, filter.SortDir), filter.Name, filter.IsActive, filter.CategoryID, cursorID, filter.Limit+1)
+	`, filter.SortBy, filter.SortDir, filter.SortDir), filter.Name, filter.IsActive, filter.CategoryID, filter.Cursor, filter.Limit+1)
 
 	if err != nil {
 		return nil, false, err

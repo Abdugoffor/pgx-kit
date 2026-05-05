@@ -88,7 +88,7 @@ func (service *languageService) AdminList(ctx context.Context, filter language_d
 		FROM languages
 		WHERE name ILIKE '%%' || $1 || '%%'
 			AND description ILIKE '%%' || $2 || '%%'
-			AND is_active = COALESCE($3, is_active)
+			AND ($3::boolean IS NULL OR is_active = $3)
 		ORDER BY %s %s
 		LIMIT $4 OFFSET $5
 	`, filter.SortBy, filter.SortDir), filter.Name, filter.Description, filter.IsActive, filter.PageSize+1, (filter.Page-1)*filter.PageSize)
@@ -127,23 +127,16 @@ func (service *languageService) AdminList(ctx context.Context, filter language_d
 }
 
 func (service *languageService) CursorList(ctx context.Context, filter language_dto.CursorFilter) ([]language_dto.Response, bool, error) {
-	var cursorID int64
-	{
-		if filter.Cursor != nil {
-			cursorID = *filter.Cursor
-		}
-	}
-
 	rows, err := service.db.Query(ctx, fmt.Sprintf(`
 		SELECT id, name, description, is_active, created_at, updated_at
 		FROM languages
 		WHERE name ILIKE '%%' || $1 || '%%'
 			AND description ILIKE '%%' || $2 || '%%'
-			AND is_active = COALESCE($3, is_active)
-			AND id > $4
-		ORDER BY %s %s
+			AND ($3::boolean IS NULL OR is_active = $3)
+			AND ($4::bigint IS NULL OR id > $4)
+		ORDER BY %s %s, id %s
 		LIMIT $5
-	`, filter.SortBy, filter.SortDir), filter.Name, filter.Description, filter.IsActive, cursorID, filter.Limit+1)
+	`, filter.SortBy, filter.SortDir, filter.SortDir), filter.Name, filter.Description, filter.IsActive, filter.Cursor, filter.Limit+1)
 
 	if err != nil {
 		return nil, false, err

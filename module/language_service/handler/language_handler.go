@@ -15,9 +15,23 @@ import (
 	language_service "pgx-kit/module/language_service/service"
 )
 
-var sortFields = map[string]bool{
-	"id": true, "name": true, "description": true,
-	"is_active": true, "created_at": true, "updated_at": true,
+var sortCols = map[string]string{
+	"id": "id", "name": "name", "description": "description",
+	"is_active": "is_active", "created_at": "created_at", "updated_at": "updated_at",
+}
+
+func parseSortBy(v string) string {
+	if col, ok := sortCols[v]; ok {
+		return col
+	}
+	return "id"
+}
+
+func parseSortDir(v string) string {
+	if v == "desc" {
+		return "desc"
+	}
+	return "asc"
 }
 
 type languageHandler struct {
@@ -34,7 +48,7 @@ func NewLanguageHandler(router *httprouter.Router, group string, db *pgxpool.Poo
 		router.DELETE(routes+"/:id", handler.Delete)
 		router.GET(routes+"/:id", handler.Show)
 		router.GET(routes, handler.CursorList)
-		router.GET(routes+"/admin", handler.AdminList)
+		router.GET(group+"/admin/languages", handler.AdminList)
 	}
 }
 
@@ -177,13 +191,8 @@ func (handler *languageHandler) AdminList(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	if v := q.Get("sort_by"); sortFields[v] {
-		filter.SortBy = v
-	}
-
-	if v := q.Get("sort_dir"); v == "asc" || v == "desc" {
-		filter.SortDir = v
-	}
+	filter.SortBy = parseSortBy(q.Get("sort_by"))
+	filter.SortDir = parseSortDir(q.Get("sort_dir"))
 
 	items, hasNext, err := handler.service.AdminList(r.Context(), filter)
 	{
@@ -222,7 +231,7 @@ func (handler *languageHandler) CursorList(w http.ResponseWriter, r *http.Reques
 	}
 
 	if v := q.Get("cursor"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
 			filter.Cursor = &n
 		}
 	}
@@ -233,13 +242,8 @@ func (handler *languageHandler) CursorList(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	if v := q.Get("sort_by"); sortFields[v] {
-		filter.SortBy = v
-	}
-
-	if v := q.Get("sort_dir"); v == "asc" || v == "desc" {
-		filter.SortDir = v
-	}
+	filter.SortBy = parseSortBy(q.Get("sort_by"))
+	filter.SortDir = parseSortDir(q.Get("sort_dir"))
 
 	items, hasMore, err := handler.service.CursorList(r.Context(), filter)
 	{
