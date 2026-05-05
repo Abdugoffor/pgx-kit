@@ -6,9 +6,11 @@ import (
 	"os"
 	"pgx-kit/config"
 	"pgx-kit/helper"
+	auth_cmd "pgx-kit/module/auth_service"
 	category_cmd "pgx-kit/module/category_service"
 	language_cmd "pgx-kit/module/language_service"
 	product_cmd "pgx-kit/module/product_service"
+	user_cmd "pgx-kit/module/user_service"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -23,9 +25,11 @@ func main() {
 
 	router := httprouter.New()
 	{
+		auth_cmd.Cmd(router, db)
 		language_cmd.Cmd(router, db)
 		category_cmd.Cmd(router, db)
 		product_cmd.Cmd(router, db)
+		user_cmd.Cmd(router, db)
 	}
 
 	fmt.Println("🚀 Server started on http://localhost:8081")

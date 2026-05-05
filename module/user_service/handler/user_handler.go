@@ -1,4 +1,4 @@
-package product_handler
+package user_handler
 
 import (
 	"encoding/json"
@@ -12,13 +12,14 @@ import (
 
 	"pgx-kit/helper"
 	"pgx-kit/middleware"
-	product_dto "pgx-kit/module/product_service/dto"
-	product_service "pgx-kit/module/product_service/service"
+	user_dto "pgx-kit/module/user_service/dto"
+	user_service "pgx-kit/module/user_service/service"
 )
 
 var sortCols = map[string]string{
-	"id": "id", "name": "name", "price": "price",
-	"is_active": "is_active", "created_at": "created_at", "updated_at": "updated_at",
+	"id": "id", "full_name": "full_name", "phone": "phone",
+	"role": "role", "is_active": "is_active",
+	"created_at": "created_at", "updated_at": "updated_at",
 }
 
 func parseSortBy(v string) string {
@@ -35,26 +36,26 @@ func parseSortDir(v string) string {
 	return "asc"
 }
 
-type productHandler struct {
-	service product_service.ProductService
+type userHandler struct {
+	service user_service.UserService
 }
 
-func NewProductHandler(router *httprouter.Router, group string, db *pgxpool.Pool) {
-	handler := &productHandler{service: product_service.NewProductService(db)}
+func NewUserHandler(router *httprouter.Router, group string, db *pgxpool.Pool) {
+	handler := &userHandler{service: user_service.NewUserService(db)}
 
-	routes := group + "/products"
+	routes := group + "/users"
 	{
 		router.POST(routes, middleware.CheckRole(handler.Create, "admin", "user"))
 		router.PUT(routes+"/:id", middleware.CheckRole(handler.Update, "admin"))
 		router.DELETE(routes+"/:id", middleware.CheckRole(handler.Delete, "admin"))
 		router.GET(routes+"/:id", middleware.CheckRole(handler.Show, "admin", "user"))
 		router.GET(routes, middleware.CheckRole(handler.CursorList, "admin", "user"))
-		router.GET(group+"/admin/products", middleware.CheckRole(handler.AdminList, "admin", "user"))
+		router.GET(group+"/admin/users", middleware.CheckRole(handler.AdminList, "admin", "user"))
 	}
 }
 
-func (handler *productHandler) Create(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var req product_dto.Create
+func (handler *userHandler) Create(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var req user_dto.Create
 	{
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			helper.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -67,7 +68,7 @@ func (handler *productHandler) Create(w http.ResponseWriter, r *http.Request, _ 
 		return
 	}
 
-	id, err := handler.service.Create(r.Context(), req)
+	res, err := handler.service.Create(r.Context(), req)
 	{
 		if err != nil {
 			helper.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -75,10 +76,10 @@ func (handler *productHandler) Create(w http.ResponseWriter, r *http.Request, _ 
 		}
 	}
 
-	helper.JSON(w, http.StatusCreated, map[string]int64{"id": id})
+	helper.JSON(w, http.StatusCreated, res)
 }
 
-func (handler *productHandler) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (handler *userHandler) Update(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	id, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
 	{
 		if err != nil {
@@ -87,7 +88,7 @@ func (handler *productHandler) Update(w http.ResponseWriter, r *http.Request, ps
 		}
 	}
 
-	var req product_dto.Update
+	var req user_dto.Update
 	{
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			helper.JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -100,7 +101,7 @@ func (handler *productHandler) Update(w http.ResponseWriter, r *http.Request, ps
 		return
 	}
 
-	updatedID, err := handler.service.Update(r.Context(), id, req)
+	res, err := handler.service.Update(r.Context(), id, req)
 	{
 		if err != nil {
 
@@ -114,10 +115,10 @@ func (handler *productHandler) Update(w http.ResponseWriter, r *http.Request, ps
 		}
 	}
 
-	helper.JSON(w, http.StatusOK, map[string]int64{"id": updatedID})
+	helper.JSON(w, http.StatusOK, res)
 }
 
-func (handler *productHandler) Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (handler *userHandler) Delete(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	id, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
 	{
 		if err != nil {
@@ -134,7 +135,7 @@ func (handler *productHandler) Delete(w http.ResponseWriter, r *http.Request, ps
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (handler *productHandler) Show(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (handler *userHandler) Show(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	id, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
 	{
 		if err != nil {
@@ -160,12 +161,14 @@ func (handler *productHandler) Show(w http.ResponseWriter, r *http.Request, ps h
 	helper.JSON(w, http.StatusOK, res)
 }
 
-func (handler *productHandler) AdminList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (handler *userHandler) AdminList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	q := r.URL.Query()
 
-	filter := product_dto.AdminFilter{
-		Filter: product_dto.Filter{
-			Name: q.Get("name"),
+	filter := user_dto.AdminFilter{
+		Filter: user_dto.Filter{
+			FullName: q.Get("full_name"),
+			Phone:    q.Get("phone"),
+			Role:     q.Get("role"),
 		},
 		Page:     1,
 		PageSize: 20,
@@ -176,12 +179,6 @@ func (handler *productHandler) AdminList(w http.ResponseWriter, r *http.Request,
 	if v := q.Get("is_active"); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
 			filter.IsActive = &b
-		}
-	}
-
-	if v := q.Get("category_id"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
-			filter.CategoryID = &n
 		}
 	}
 
@@ -208,7 +205,7 @@ func (handler *productHandler) AdminList(w http.ResponseWriter, r *http.Request,
 		}
 	}
 
-	helper.JSON(w, http.StatusOK, product_dto.AdminListResponse{
+	helper.JSON(w, http.StatusOK, user_dto.AdminListResponse{
 		Data:     items,
 		Page:     filter.Page,
 		PageSize: filter.PageSize,
@@ -217,12 +214,14 @@ func (handler *productHandler) AdminList(w http.ResponseWriter, r *http.Request,
 	})
 }
 
-func (handler *productHandler) CursorList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (handler *userHandler) CursorList(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	q := r.URL.Query()
 
-	filter := product_dto.CursorFilter{
-		Filter: product_dto.Filter{
-			Name: q.Get("name"),
+	filter := user_dto.CursorFilter{
+		Filter: user_dto.Filter{
+			FullName: q.Get("full_name"),
+			Phone:    q.Get("phone"),
+			Role:     q.Get("role"),
 		},
 		Limit:   20,
 		SortBy:  "id",
@@ -235,12 +234,6 @@ func (handler *productHandler) CursorList(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	if v := q.Get("category_id"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
-			filter.CategoryID = &n
-		}
-	}
-
 	if v := q.Get("cursor"); v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
 			filter.Cursor = &n
@@ -248,7 +241,10 @@ func (handler *productHandler) CursorList(w http.ResponseWriter, r *http.Request
 	}
 
 	if v := q.Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 100 {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			if n > 100 {
+				n = 100
+			}
 			filter.Limit = n
 		}
 	}
@@ -264,7 +260,7 @@ func (handler *productHandler) CursorList(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	resp := product_dto.CursorListResponse{
+	resp := user_dto.CursorListResponse{
 		Data:    items,
 		HasMore: hasMore,
 	}

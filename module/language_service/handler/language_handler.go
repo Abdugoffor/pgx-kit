@@ -11,6 +11,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 
 	"pgx-kit/helper"
+	"pgx-kit/middleware"
 	language_dto "pgx-kit/module/language_service/dto"
 	language_service "pgx-kit/module/language_service/service"
 )
@@ -43,12 +44,12 @@ func NewLanguageHandler(router *httprouter.Router, group string, db *pgxpool.Poo
 
 	routes := group + "/languages"
 	{
-		router.POST(routes, handler.Create)
-		router.PUT(routes+"/:id", handler.Update)
-		router.DELETE(routes+"/:id", handler.Delete)
-		router.GET(routes+"/:id", handler.Show)
-		router.GET(routes, handler.CursorList)
-		router.GET(group+"/admin/languages", handler.AdminList)
+		router.POST(routes, middleware.CheckRole(handler.Create, "admin", "user"))
+		router.PUT(routes+"/:id", middleware.CheckRole(handler.Update, "admin"))
+		router.DELETE(routes+"/:id", middleware.CheckRole(handler.Delete, "admin"))
+		router.GET(routes+"/:id", middleware.CheckRole(handler.Show, "admin", "user"))
+		router.GET(routes, middleware.CheckRole(handler.CursorList, "admin", "user"))
+		router.GET(group+"/admin/languages", middleware.CheckRole(handler.AdminList, "admin", "user"))
 	}
 }
 
