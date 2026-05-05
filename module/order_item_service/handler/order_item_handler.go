@@ -23,14 +23,14 @@ type orderItemHandler struct {
 func NewOrderItemHandler(router *httprouter.Router, group string, db *pgxpool.Pool) {
 	handler := &orderItemHandler{service: order_item_service.NewOrderItemService(db)}
 
-	router.POST(group+"/orders/:order_id/items", middleware.CheckRole(handler.Create, "admin", "user"))
-	router.GET(group+"/orders/:order_id/items", middleware.CheckRole(handler.List, "admin", "user"))
+	router.POST(group+"/orders/:id/items", middleware.CheckRole(handler.Create, "admin", "user"))
+	router.GET(group+"/orders/:id/items", middleware.CheckRole(handler.List, "admin", "user"))
 	router.PUT(group+"/order-items/:id", middleware.CheckRole(handler.Update, "admin"))
 	router.DELETE(group+"/order-items/:id", middleware.CheckRole(handler.Delete, "admin"))
 }
 
 func (handler *orderItemHandler) Create(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	orderID, err := strconv.ParseInt(ps.ByName("order_id"), 10, 64)
+	orderID, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
 	{
 		if err != nil {
 			helper.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid order_id"})
@@ -125,7 +125,7 @@ func (handler *orderItemHandler) Delete(w http.ResponseWriter, r *http.Request, 
 }
 
 func (handler *orderItemHandler) List(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	orderID, err := strconv.ParseInt(ps.ByName("order_id"), 10, 64)
+	orderID, err := strconv.ParseInt(ps.ByName("id"), 10, 64)
 	{
 		if err != nil {
 			helper.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid order_id"})
