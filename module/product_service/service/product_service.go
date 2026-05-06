@@ -58,10 +58,10 @@ func (service *productService) Create(ctx context.Context, companyID int64, req 
 	var id int64
 
 	err := service.db.QueryRow(ctx, `
-		INSERT INTO products (name, description, cost_price, sell_price, category_id, is_active, company_id)
+		INSERT INTO products (name, description, price, sell_price, category_id, is_active, company_id)
 		VALUES ($1, $2, $3, $4, $5, COALESCE($6, true), $7)
 		RETURNING id
-	`, req.Name, req.Description, req.CostPrice, req.SellPrice, req.CategoryID, req.IsActive, companyID).Scan(&id)
+	`, req.Name, req.Description, req.Price, req.SellPrice, req.CategoryID, req.IsActive, companyID).Scan(&id)
 	{
 		if err != nil {
 			return 0, err
@@ -84,14 +84,14 @@ func (service *productService) Update(ctx context.Context, companyID, id int64, 
 		UPDATE products
 		SET name        = COALESCE($1, name),
 		    description = COALESCE($2, description),
-		    cost_price  = COALESCE($3::numeric, cost_price),
+		    price       = COALESCE($3::numeric, price),
 		    sell_price  = COALESCE($4::numeric, sell_price),
 		    category_id = COALESCE($5, category_id),
 		    is_active   = COALESCE($6, is_active),
 		    updated_at  = now()
 		WHERE id = $7 AND company_id = $8
 		RETURNING id
-	`, req.Name, req.Description, req.CostPrice, req.SellPrice, req.CategoryID, req.IsActive, id, companyID).Scan(&updatedID)
+	`, req.Name, req.Description, req.Price, req.SellPrice, req.CategoryID, req.IsActive, id, companyID).Scan(&updatedID)
 	{
 		if err != nil {
 			return 0, err
@@ -121,13 +121,13 @@ func (service *productService) Show(ctx context.Context, companyID, id int64) (*
 	var res product_dto.Response
 
 	err := service.db.QueryRow(ctx, `
-		SELECT p.id, p.name, p.description, p.cost_price::float8, p.sell_price::float8, p.is_active, p.created_at, p.updated_at,
+		SELECT p.id, p.name, p.description, p.price::float8, p.sell_price::float8, p.is_active, p.created_at, p.updated_at,
 		       json_build_object('id', c.id, 'name', c.name, 'is_active', c.is_active)
 		FROM products p
 		JOIN categories c ON c.id = p.category_id
 		WHERE p.id = $1 AND p.company_id = $2
 	`, id, companyID).Scan(
-		&res.ID, &res.Name, &res.Description, &res.CostPrice, &res.SellPrice, &res.IsActive, &res.CreatedAt, &res.UpdatedAt,
+		&res.ID, &res.Name, &res.Description, &res.Price, &res.SellPrice, &res.IsActive, &res.CreatedAt, &res.UpdatedAt,
 		&res.Category,
 	)
 
@@ -140,7 +140,7 @@ func (service *productService) Show(ctx context.Context, companyID, id int64) (*
 
 func (service *productService) AdminList(ctx context.Context, companyID int64, filter product_dto.AdminFilter) ([]product_dto.Response, bool, error) {
 	rows, err := service.db.Query(ctx, fmt.Sprintf(`
-		SELECT p.id, p.name, p.description, p.cost_price::float8, p.sell_price::float8, p.is_active, p.created_at, p.updated_at,
+		SELECT p.id, p.name, p.description, p.price::float8, p.sell_price::float8, p.is_active, p.created_at, p.updated_at,
 		       json_build_object('id', c.id, 'name', c.name, 'is_active', c.is_active)
 		FROM products p
 		JOIN categories c ON c.id = p.category_id
@@ -164,7 +164,7 @@ func (service *productService) AdminList(ctx context.Context, companyID int64, f
 			var res product_dto.Response
 			{
 				if err := rows.Scan(
-					&res.ID, &res.Name, &res.Description, &res.CostPrice, &res.SellPrice, &res.IsActive, &res.CreatedAt, &res.UpdatedAt,
+					&res.ID, &res.Name, &res.Description, &res.Price, &res.SellPrice, &res.IsActive, &res.CreatedAt, &res.UpdatedAt,
 					&res.Category,
 				); err != nil {
 					return nil, false, err
@@ -190,7 +190,7 @@ func (service *productService) AdminList(ctx context.Context, companyID int64, f
 
 func (service *productService) CursorList(ctx context.Context, companyID int64, filter product_dto.CursorFilter) ([]product_dto.Response, bool, error) {
 	rows, err := service.db.Query(ctx, fmt.Sprintf(`
-		SELECT p.id, p.name, p.description, p.cost_price::float8, p.sell_price::float8, p.is_active, p.created_at, p.updated_at,
+		SELECT p.id, p.name, p.description, p.price::float8, p.sell_price::float8, p.is_active, p.created_at, p.updated_at,
 		       json_build_object('id', c.id, 'name', c.name, 'is_active', c.is_active)
 		FROM products p
 		JOIN categories c ON c.id = p.category_id
@@ -215,7 +215,7 @@ func (service *productService) CursorList(ctx context.Context, companyID int64, 
 			var res product_dto.Response
 			{
 				if err := rows.Scan(
-					&res.ID, &res.Name, &res.Description, &res.CostPrice, &res.SellPrice, &res.IsActive, &res.CreatedAt, &res.UpdatedAt,
+					&res.ID, &res.Name, &res.Description, &res.Price, &res.SellPrice, &res.IsActive, &res.CreatedAt, &res.UpdatedAt,
 					&res.Category,
 				); err != nil {
 					return nil, false, err

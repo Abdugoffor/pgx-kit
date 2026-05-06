@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS products (
     category_id BIGINT          NOT NULL REFERENCES categories(id),
     name        VARCHAR(255)    NOT NULL,
     description VARCHAR(1000),
-    cost_price  NUMERIC(12, 2)  NOT NULL,
+    price       NUMERIC(12, 2)  NOT NULL,
     sell_price  NUMERIC(12, 2)  NOT NULL,
     is_active   BOOLEAN         NOT NULL DEFAULT TRUE,
     created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
