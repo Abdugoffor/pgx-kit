@@ -52,9 +52,18 @@ func (service *authService) Register(ctx context.Context, req auth_dto.Register)
 		}
 	}
 
+	tx, err := service.db.Begin(ctx)
+	{
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	defer tx.Rollback(ctx)
+
 	var res auth_dto.TokenResponse
 
-	err = service.db.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		INSERT INTO users (full_name, phone, password)
 		VALUES ($1, $2, $3)
 		RETURNING id, full_name, phone, role, created_at
@@ -65,7 +74,30 @@ func (service *authService) Register(ctx context.Context, req auth_dto.Register)
 		return nil, err
 	}
 
-	token, err := helper.GenerateToken(res.User.ID, res.User.Role, 0)
+	err = tx.QueryRow(ctx, `
+		INSERT INTO companys (name)
+		VALUES ($1)
+		RETURNING id
+	`, req.CompanyName).Scan(&res.User.CompanyID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = tx.Exec(ctx, `
+		INSERT INTO company_users (company_id, user_id)
+		VALUES ($1, $2)
+	`, res.User.CompanyID, res.User.ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
+	token, err := helper.GenerateToken(res.User.ID, res.User.Role, res.User.CompanyID)
 	{
 		if err != nil {
 			return nil, err
@@ -98,14 +130,14 @@ func (service *authService) Login(ctx context.Context, req auth_dto.Login) (*aut
 		return nil, ErrInvalidCredentials
 	}
 
-	companyID, err := service.lookupCompanyID(ctx, res.User.ID)
+	res.User.CompanyID, err = service.lookupCompanyID(ctx, res.User.ID)
 	{
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	token, err := helper.GenerateToken(res.User.ID, res.User.Role, companyID)
+	token, err := helper.GenerateToken(res.User.ID, res.User.Role, res.User.CompanyID)
 	{
 		if err != nil {
 			return nil, err

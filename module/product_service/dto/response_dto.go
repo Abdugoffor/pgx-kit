@@ -9,7 +9,8 @@ type Response struct {
 	ID          int64           `json:"id"`
 	Name        string          `json:"name"`
 	Description *string         `json:"description"`
-	Price       float64         `json:"price"`
+	CostPrice   float64         `json:"cost_price"`
+	SellPrice   float64         `json:"sell_price"`
 	Category    json.RawMessage `json:"category"`
 	IsActive    bool            `json:"is_active"`
 	CreatedAt   time.Time       `json:"created_at"`

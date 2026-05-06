@@ -17,7 +17,7 @@ import (
 )
 
 var sortCols = map[string]string{
-	"id": "id", "name": "name", "price": "price",
+	"id": "id", "name": "name", "cost_price": "cost_price", "sell_price": "sell_price",
 	"is_active": "is_active", "created_at": "created_at", "updated_at": "updated_at",
 }
 

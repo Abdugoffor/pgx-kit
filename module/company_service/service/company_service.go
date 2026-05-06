@@ -7,7 +7,6 @@ import (
 	"pgx-kit/helper"
 	company_dto "pgx-kit/module/company_service/dto"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -29,7 +28,7 @@ func NewCompanyService(db *pgxpool.Pool) CompanyService {
 }
 
 func (service *companyService) Create(ctx context.Context, userID int64, role string, req company_dto.Create) (*company_dto.CreateResponse, error) {
-	tx, err := service.db.BeginTx(ctx, pgx.TxOptions{})
+	tx, err := service.db.Begin(ctx)
 	{
 		if err != nil {
 			return nil, err
