@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -58,4 +59,117 @@ func Validate(v any) map[string]string {
 	}
 
 	return errs
+}
+
+var slugReplacer = strings.NewReplacer(
+	// O'zbek kirill
+	"а", "a",
+	"б", "b",
+	"в", "v",
+	"г", "g",
+	"д", "d",
+	"е", "e",
+	"ё", "yo",
+	"ж", "j",
+	"з", "z",
+	"и", "i",
+	"й", "y",
+	"к", "k",
+	"л", "l",
+	"м", "m",
+	"н", "n",
+	"о", "o",
+	"п", "p",
+	"р", "r",
+	"с", "s",
+	"т", "t",
+	"у", "u",
+	"ф", "f",
+	"х", "x",
+	"ц", "ts",
+	"ч", "ch",
+	"ш", "sh",
+	"щ", "sh",
+	"ъ", "",
+	"ы", "y",
+	"ь", "",
+	"э", "e",
+	"ю", "yu",
+	"я", "ya",
+
+	// O'zbek maxsus kirill
+	"қ", "q",
+	"ғ", "g",
+	"ҳ", "h",
+	"ў", "o",
+
+	// Katta harflar
+	"А", "a",
+	"Б", "b",
+	"В", "v",
+	"Г", "g",
+	"Д", "d",
+	"Е", "e",
+	"Ё", "yo",
+	"Ж", "j",
+	"З", "z",
+	"И", "i",
+	"Й", "y",
+	"К", "k",
+	"Л", "l",
+	"М", "m",
+	"Н", "n",
+	"О", "o",
+	"П", "p",
+	"Р", "r",
+	"С", "s",
+	"Т", "t",
+	"У", "u",
+	"Ф", "f",
+	"Х", "x",
+	"Ц", "ts",
+	"Ч", "ch",
+	"Ш", "sh",
+	"Щ", "sh",
+	"Ъ", "",
+	"Ы", "y",
+	"Ь", "",
+	"Э", "e",
+	"Ю", "yu",
+	"Я", "ya",
+
+	// O'zbek maxsus katta kirill
+	"Қ", "q",
+	"Ғ", "g",
+	"Ҳ", "h",
+	"Ў", "o",
+
+	// O'zbek lotin apostroflari
+	"ʻ", "",
+	"ʼ", "",
+	"‘", "",
+	"’", "",
+	"`", "",
+	"'", "",
+
+	// Ba'zi maxsus belgilar
+	"&", " va ",
+	"+", " plus ",
+)
+
+var (
+	regSpecialChars = regexp.MustCompile(`[^a-z0-9\s-]`)
+	regSpacesDashes = regexp.MustCompile(`[\s-]+`)
+)
+
+func Slug(data string) string {
+	data = strings.TrimSpace(data)
+	data = slugReplacer.Replace(data)
+	data = strings.ToLower(data)
+
+	data = regSpecialChars.ReplaceAllString(data, "")
+	data = regSpacesDashes.ReplaceAllString(data, "-")
+	data = strings.Trim(data, "-")
+
+	return data
 }

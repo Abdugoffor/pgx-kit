@@ -95,6 +95,10 @@ func (handler *productHandler) Create(w http.ResponseWriter, r *http.Request, _ 
 
 	req.Photo = photo
 
+	slug := helper.Slug(req.Name)
+
+	req.Slug = &slug
+
 	id, err := handler.service.Create(r.Context(), companyID, req)
 	{
 		if err != nil {

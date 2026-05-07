@@ -1,8 +1,9 @@
 CREATE TABLE IF NOT EXISTS products (
     id          BIGSERIAL       PRIMARY KEY,
     company_id  BIGINT          NOT NULL,
-    category_id BIGINT          NOT NULL,
+    category_id BIGINT          DEFAULT NULL,
     name        VARCHAR(255)    NOT NULL,
+    slug        VARCHAR(255)    NOT NULL,
     description VARCHAR(1000),
     photo       VARCHAR(255),
     price       NUMERIC(12, 2)  NOT NULL,

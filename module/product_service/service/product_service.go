@@ -51,17 +51,12 @@ func (service *productService) ensureCategoryInCompany(ctx context.Context, cate
 }
 
 func (service *productService) Create(ctx context.Context, companyID int64, req product_dto.Create) (int64, error) {
-	if err := service.ensureCategoryInCompany(ctx, req.CategoryID, companyID); err != nil {
-		return 0, err
-	}
-
 	var id int64
-
 	err := service.db.QueryRow(ctx, `
-		INSERT INTO products (name, description, price, sell_price, category_id, is_active, photo, company_id)
+		INSERT INTO products (name,slug, description, price, sell_price, category_id, is_active, photo, company_id)
 		VALUES ($1, $2, $3, $4, $5, COALESCE($6, true), $7, $8)
 		RETURNING id
-	`, req.Name, req.Description, req.Price, req.SellPrice, req.CategoryID, req.IsActive, req.Photo, companyID).Scan(&id)
+	`, req.Name, req.Slug, req.Description, req.Price, req.SellPrice, req.CategoryID, req.IsActive, req.Photo, companyID).Scan(&id)
 	{
 		if err != nil {
 			return 0, err
@@ -93,10 +88,9 @@ func (service *productService) Update(ctx context.Context, companyID, id int64, 
 		WHERE id = $8 AND company_id = $9
 		RETURNING id
 	`, req.Name, req.Description, req.Price, req.SellPrice, req.CategoryID, req.IsActive, req.Photo, id, companyID).Scan(&updatedID)
-	{
-		if err != nil {
-			return 0, err
-		}
+
+	if err != nil {
+		return 0, err
 	}
 
 	return updatedID, nil
