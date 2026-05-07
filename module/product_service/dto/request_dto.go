@@ -7,6 +7,7 @@ type Create struct {
 	SellPrice   float64 `json:"sell_price"  validate:"required,gt=0"`
 	CategoryID  int64   `json:"category_id" validate:"required,gt=0"`
 	IsActive    *bool   `json:"is_active"`
+	Photo       *string `json:"photo"`
 }
 
 type Update struct {
@@ -16,6 +17,7 @@ type Update struct {
 	SellPrice   *float64 `json:"sell_price"  validate:"omitempty,gt=0"`
 	CategoryID  *int64   `json:"category_id" validate:"omitempty,gt=0"`
 	IsActive    *bool    `json:"is_active"`
+	Photo       *string  `json:"photo"`
 }
 
 type Filter struct {

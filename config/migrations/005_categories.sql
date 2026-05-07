@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS categories (
     id         BIGSERIAL    PRIMARY KEY,
-    company_id BIGINT       NOT NULL REFERENCES companys(id),
+    company_id BIGINT       NOT NULL,
     name       VARCHAR(100) NOT NULL,
     is_active  BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),

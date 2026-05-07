@@ -1,16 +1,16 @@
 CREATE TABLE IF NOT EXISTS order_items (
     id                    BIGSERIAL       PRIMARY KEY,
-    company_id            BIGINT          NOT NULL REFERENCES companys(id),
-    order_id              BIGINT          NOT NULL REFERENCES orders(id),
-    product_id            BIGINT          NOT NULL REFERENCES products(id),
-    product_value_id      BIGINT          NOT NULL REFERENCES product_value(id), -- qaysi lotdan olindi
+    company_id            BIGINT          NOT NULL,
+    order_id              BIGINT          NOT NULL,
+    product_id            BIGINT          NOT NULL,
+    product_value_id      BIGINT          NOT NULL, -- qaysi lotdan olindi
     quantity              NUMERIC(12, 3)  NOT NULL,                              -- qancha sotildi/qaytarildi
     sale_price            NUMERIC(12, 2)  NOT NULL,                              -- standart narx (skidkasiz)
     discount              NUMERIC(12, 2)   NOT NULL,                              -- haqiqiy narx (skidka bo'lsa kam)
 
     CONSTRAINT order_items_quantity_positive  CHECK (quantity > 0),
     CONSTRAINT order_items_price_positive     CHECK (sale_price > 0),
-    CONSTRAINT order_items_discount_positive  CHECK (discount >= 0),
+    CONSTRAINT order_items_discount_positive  CHECK (discount >= 0)
 );
 
 -- Order bo'yicha qatorlarni olish (eng tez-tez ishlatiladigan)

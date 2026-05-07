@@ -1,12 +1,12 @@
 package user_dto
 
 type Create struct {
-	FullName string `json:"full_name" validate:"required,min=2,max=255"`
-	Phone    string `json:"phone"     validate:"required,min=7,max=50"`
-	Password string `json:"password"  validate:"required,min=6"`
-	Photo    string `json:"photo"     validate:"omitempty,max=255"`
-	Role     string `json:"role"      validate:"omitempty,oneof=user admin"`
-	IsActive *bool  `json:"is_active"`
+	FullName string  `json:"full_name" validate:"required,min=2,max=255"`
+	Phone    string  `json:"phone"     validate:"required,min=7,max=50"`
+	Password string  `json:"password"  validate:"required,min=6"`
+	Photo    *string `json:"photo"     validate:"omitempty,max=255"`
+	Role     string  `json:"role"      validate:"omitempty,oneof=user admin"`
+	IsActive *bool   `json:"is_active"`
 }
 
 type Update struct {

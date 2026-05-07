@@ -55,13 +55,26 @@ module/<feature>_service/
     dto/            # request and response structs with json/validate tags
 ```
 
-`main.go` initializes the DB pool, runs migrations, instantiates all modules, and starts the server.
+`main.go` initializes the DB pool, runs migrations, instantiates all modules, and starts the server. It also handles the `migrate:create` CLI subcommand (invoked via `make migrate`).
 
-`config/database.go` configures pgxpool (10–50 connections, 1h max lifetime, 30m idle timeout).
+`config/database.go` configures pgxpool (10-50 connections, 1h max lifetime, 30m idle timeout).
 
 `middleware/middleware.go` provides `CheckRole(next, roles...)` — validates the JWT from `Authorization: Bearer <token>`, checks the role claim, and sets `ContextUserID`, `ContextRole`, and `ContextCompanyID` on the request context. Helper functions `middleware.UserID(r)`, `middleware.UserRole(r)`, and `middleware.CompanyID(r)` extract these values.
 
-`helper/helper.go` provides JSON response helpers (`helper.JSON(w, status, data)`) and struct validation (`helper.Validate(v)` returns `map[string]string` of field→failing tag). The shared `validator` instance uses JSON field names in error maps.
+`helper/helper.go` provides JSON response helpers (`helper.JSON(w, status, data)`) and struct validation (`helper.Validate(v)` returns `map[string]string` of field->failing tag). The shared `validator` instance uses JSON field names in error maps.
+
+## Domain Model
+
+This is an inventory management system. The core flow is:
+
+- **companys** own products, categories, and orders
+- **products** belong to a category and have a cost price (`price`) and sell price (`sell_price`)
+- **product_value** tracks inventory lots (batches) per product with `quantity_after` as current stock
+- **orders** represent transactions; `type` is one of: `sotuv` (sale), `vazvrat_bizga` (customer return), `vazvrat_mijoz` (return to supplier)
+- **order_items** link orders to product lots; stock adjustments update `product_value.quantity_after`
+- **product_history** is an audit log of all stock movements with before/after quantities
+
+Incoming stock ("prihod") creates a new `product_value` lot and a `product_history` entry with no `order_id`. Sales and returns go through `orders` -> `order_items` and adjust lot quantities accordingly.
 
 ## Code Generator
 
@@ -89,4 +102,4 @@ module/<feature>_service/
 
 **JWT claims:** `user_id` (float64), `role` (string), `company_id` (float64), 24-hour expiry, signed with HMAC-SHA256 using `JWT_KEY`.
 
-**Sentinel errors:** define domain errors (e.g., `ErrNoCompany`, `ErrCategoryInvalid`, `ErrInvalidCredentials`) in the service layer and map them to HTTP status codes in the handler.
+**Sentinel errors:** define domain errors (e.g., `ErrNoCompany`, `ErrCategoryInvalid`, `ErrInvalidCredentials`) in the service layer and map them to HTTP status codes in the handler with `errors.Is()`.

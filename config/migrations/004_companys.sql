@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS companys (
 
 CREATE TABLE IF NOT EXISTS company_users (
     id         BIGSERIAL   PRIMARY KEY,
-    company_id BIGINT      NOT NULL REFERENCES companys(id),
-    user_id    BIGINT      NOT NULL REFERENCES users(id),
+    company_id BIGINT      NOT NULL,
+    user_id    BIGINT      NOT NULL,
     is_active  BOOLEAN     NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

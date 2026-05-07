@@ -11,6 +11,7 @@ type Response struct {
 	Description *string         `json:"description"`
 	Price       float64         `json:"price"`
 	SellPrice   float64         `json:"sell_price"`
+	Photo       *string         `json:"photo"`
 	Category    json.RawMessage `json:"category"`
 	IsActive    bool            `json:"is_active"`
 	CreatedAt   time.Time       `json:"created_at"`

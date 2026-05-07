@@ -16,6 +16,10 @@ import (
 	user_service "pgx-kit/module/user_service/service"
 )
 
+var fileFormat = []string{".jpg", ".jpeg", ".png", ".webp"}
+
+const maxSize int64 = 10
+
 var sortCols = map[string]string{
 	"id": "id", "full_name": "full_name", "phone": "phone",
 	"role": "role", "is_active": "is_active",
@@ -68,6 +72,16 @@ func (handler *userHandler) Create(w http.ResponseWriter, r *http.Request, _ htt
 		return
 	}
 
+	photo, err := helper.UploadFile(r, "photo", fileFormat, maxSize)
+	{
+		if err != nil {
+			helper.JSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			return
+		}
+	}
+
+	req.Photo = photo
+
 	res, err := handler.service.Create(r.Context(), req)
 	{
 		if err != nil {
@@ -100,6 +114,16 @@ func (handler *userHandler) Update(w http.ResponseWriter, r *http.Request, ps ht
 		helper.JSON(w, http.StatusUnprocessableEntity, map[string]any{"errors": errs})
 		return
 	}
+
+	photo, err := helper.UploadFile(r, "photo", fileFormat, maxSize)
+	{
+		if err != nil {
+			helper.JSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			return
+		}
+	}
+
+	req.Photo = photo
 
 	res, err := handler.service.Update(r.Context(), id, req)
 	{

@@ -1,16 +1,16 @@
 CREATE TABLE IF NOT EXISTS product_history (
     id                BIGSERIAL       PRIMARY KEY,
-    company_id        BIGINT          NOT NULL REFERENCES companys(id),
-    user_id           BIGINT          NOT NULL REFERENCES users(id),          -- kim amalga oshirdi
-    product_id        BIGINT          NOT NULL REFERENCES products(id),
-    product_value_id  BIGINT          NOT NULL REFERENCES product_value(id),  -- qaysi lot
-    order_id          BIGINT          REFERENCES orders(id),                  -- NULL = prihod
+    company_id        BIGINT          NOT NULL,
+    user_id           BIGINT          NOT NULL,                               -- kim amalga oshirdi
+    product_id        BIGINT          NOT NULL,
+    product_value_id  BIGINT          NOT NULL,                               -- qaysi lot
+    order_id          BIGINT,                                                 -- NULL = prihod
     order_type        VARCHAR(20)     NOT NULL,                               -- harakat turi
     quantity          NUMERIC(12, 3)  NOT NULL,                               -- o'zgarish miqdori
     quantity_before   NUMERIC(12, 3)  NOT NULL,                               -- harakatdan oldin
     quantity_after    NUMERIC(12, 3)  NOT NULL,                               -- harakatdan keyin
     price             NUMERIC(12, 2),                                         -- narx (yuqorida izoh)
-    created_at        TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    created_at        TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
 -- Lot tarixi — "Rulon 3 ga nima bo'ldi?" (eng ko'p ishlatiladigan)

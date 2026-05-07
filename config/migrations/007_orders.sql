@@ -1,12 +1,12 @@
 CREATE TABLE IF NOT EXISTS orders (
     id                  BIGSERIAL       PRIMARY KEY,
-    company_id          BIGINT          NOT NULL REFERENCES companys(id),
-    user_id             BIGINT          NOT NULL REFERENCES users(id), -- kim amalga oshirdi
+    company_id          BIGINT          NOT NULL,
+    user_id             BIGINT          NOT NULL, -- kim amalga oshirdi
     type                VARCHAR(20)     NOT NULL,                      -- harakat turi
-    reference_order_id  BIGINT          REFERENCES orders(id),         -- vazvrat_bizga uchun original sotuv
+    reference_order_id  BIGINT,                                        -- vazvrat_bizga uchun original sotuv
     total_sum           NUMERIC(12, 2)  NOT NULL DEFAULT 0,            -- hujjatning umumiy summasi
     note                TEXT,                                          -- izoh (ixtiyoriy)
-    created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
 );
 
 -- Kompaniya bo'yicha filtrlash (asosiy filtr)
