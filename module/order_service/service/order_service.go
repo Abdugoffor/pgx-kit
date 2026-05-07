@@ -92,12 +92,16 @@ func (s *orderService) Prihod(ctx context.Context, companyID, userID int64, rows
 				VALUES ($1, $2, $3, $4, $5, $6)
 				RETURNING id
 			`, companyID, row.Name, slug, row.Description, row.Price, row.SellPrice).Scan(&productID)
+
 			if err != nil {
 				return nil, fmt.Errorf("create product %q: %w", row.Name, err)
 			}
+
 			productsCreated++
+
 		} else if err != nil {
 			return nil, fmt.Errorf("find product %q: %w", row.Name, err)
+
 		} else {
 			// Product mavjud — narxini yangilaymiz
 			_, err = tx.Exec(ctx, `
@@ -105,6 +109,7 @@ func (s *orderService) Prihod(ctx context.Context, companyID, userID int64, rows
 				SET price = $1, sell_price = $2, updated_at = NOW()
 				WHERE id = $3 AND company_id = $4
 			`, row.Price, row.SellPrice, productID, companyID)
+
 			if err != nil {
 				return nil, fmt.Errorf("update product price %q: %w", row.Name, err)
 			}
@@ -117,12 +122,14 @@ func (s *orderService) Prihod(ctx context.Context, companyID, userID int64, rows
 			FROM product_value
 			WHERE product_id = $1 AND company_id = $2
 		`, productID, companyID).Scan(&currentStock)
+
 		if err != nil {
 			return nil, fmt.Errorf("get current stock for %q: %w", row.Name, err)
 		}
 
 		// 5. count bo'yicha product_value va product_history yozish
 		count := row.Count
+
 		if count < 1 {
 			count = 1
 		}
@@ -135,6 +142,7 @@ func (s *orderService) Prihod(ctx context.Context, companyID, userID int64, rows
 				VALUES ($1, $2, $3, $4, $5, $6)
 				RETURNING id
 			`, companyID, productID, row.Price, row.Quantity, row.Quantity, row.Unit).Scan(&pvID)
+
 			if err != nil {
 				return nil, fmt.Errorf("create product_value for %q: %w", row.Name, err)
 			}
@@ -144,6 +152,7 @@ func (s *orderService) Prihod(ctx context.Context, companyID, userID int64, rows
 				INSERT INTO order_items (company_id, order_id, product_id, product_value_id, quantity, sale_price, discount)
 				VALUES ($1, $2, $3, $4, $5, $6, 0)
 			`, companyID, orderID, productID, pvID, row.Quantity, row.Price)
+
 			if err != nil {
 				return nil, fmt.Errorf("create order_item for %q: %w", row.Name, err)
 			}
@@ -157,6 +166,7 @@ func (s *orderService) Prihod(ctx context.Context, companyID, userID int64, rows
 				INSERT INTO product_history (company_id, user_id, product_id, product_value_id, order_id, order_type, quantity, quantity_before, quantity_after, price)
 				VALUES ($1, $2, $3, $4, $5, 'prihod', $6, $7, $8, $9)
 			`, companyID, userID, productID, pvID, orderID, row.Quantity, quantityBefore, quantityAfter, row.Price)
+
 			if err != nil {
 				return nil, fmt.Errorf("create product_history for %q: %w", row.Name, err)
 			}
@@ -285,6 +295,7 @@ func (s *orderService) Sotuv(ctx context.Context, companyID, userID int64, req o
 
 			// order_items — har bir lotdan olingan miqdor uchun
 			actualPrice := sellPrice - item.Discount
+
 			if actualPrice < 0 {
 				actualPrice = 0
 			}
@@ -292,6 +303,7 @@ func (s *orderService) Sotuv(ctx context.Context, companyID, userID int64, req o
 				INSERT INTO order_items (company_id, order_id, product_id, product_value_id, quantity, sale_price, discount)
 				VALUES ($1, $2, $3, $4, $5, $6, $7)
 			`, companyID, orderID, item.ProductID, lotID, take, sellPrice, item.Discount)
+
 			if err != nil {
 				rows.Close()
 				return nil, fmt.Errorf("create order_item: %w", err)
@@ -304,6 +316,7 @@ func (s *orderService) Sotuv(ctx context.Context, companyID, userID int64, req o
 				INSERT INTO product_history (company_id, user_id, product_id, product_value_id, order_id, order_type, quantity, quantity_before, quantity_after, price)
 				VALUES ($1, $2, $3, $4, $5, 'sotuv', $6, $7, $8, $9)
 			`, companyID, userID, item.ProductID, lotID, orderID, take, qtyBefore, currentStock, sellPrice)
+
 			if err != nil {
 				rows.Close()
 				return nil, fmt.Errorf("create product_history: %w", err)

@@ -200,9 +200,11 @@ func (h *orderHandler) Sotuv(w http.ResponseWriter, r *http.Request, _ httproute
 	userID := middleware.UserID(r)
 
 	var req order_dto.SotuvRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		helper.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
-		return
+	{
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			helper.JSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+			return
+		}
 	}
 
 	if errs := helper.Validate(req); errs != nil {
@@ -211,18 +213,20 @@ func (h *orderHandler) Sotuv(w http.ResponseWriter, r *http.Request, _ httproute
 	}
 
 	result, err := h.service.Sotuv(r.Context(), companyID, userID, req)
-	if err != nil {
-		switch {
-		case errors.Is(err, order_service.ErrEmptyCart):
-			helper.JSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
-		case errors.Is(err, order_service.ErrProductNotFound):
-			helper.JSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
-		case errors.Is(err, order_service.ErrNotEnoughStock):
-			helper.JSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
-		default:
-			helper.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	{
+		if err != nil {
+			switch {
+			case errors.Is(err, order_service.ErrEmptyCart):
+				helper.JSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			case errors.Is(err, order_service.ErrProductNotFound):
+				helper.JSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+			case errors.Is(err, order_service.ErrNotEnoughStock):
+				helper.JSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+			default:
+				helper.JSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			}
+			return
 		}
-		return
 	}
 
 	helper.JSON(w, http.StatusCreated, result)
